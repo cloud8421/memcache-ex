@@ -32,6 +32,14 @@ defmodule Memcache.Protocol do
           << 0x00 :: size(64) >> ])
   end
 
+  def to_binary(:AUTH_NEGOTIATION) do
+    bcat([ request, opb(:AUTH_NEGOTIATION),
+      << 0x00 :: size(16) >>,
+      << 0x00 >>, datatype, reserved,
+      << 0x00 :: size(32) >>, opaque,
+      << 0x00 :: size(64) >> ])
+  end
+
   def to_binary(command) do
     to_binary(command, 0)
   end
@@ -97,6 +105,22 @@ defmodule Memcache.Protocol do
 
   def to_binary(command, key) do
     to_binary(command, key, 0)
+  end
+
+  def to_binary(:AUTH_REQUEST, username, password) do
+    msg = << 0x00 >> <> username <> <<0x00>> <> password
+    method = "PLAIN"
+
+    bcat([ request, opb(:AUTH_REQUEST), << 0x00 :: size(8) >>]) <>
+    << String.length(method) :: size(8) >> <>
+    bcat([<< 0x00 :: size(32) >>, datatype, reserved]) <>
+    << String.length(method) + String.length(msg) :: size(8) >> <>
+    << 0x00 :: size(64) >> <> opaque <>
+    "PLAIN" <>
+    << 0x00 >> <>
+    username <>
+    << 0x00 >> <>
+    password
   end
 
   def to_binary(:GETQ, id, key) do
@@ -394,6 +418,14 @@ defmodule Memcache.Protocol do
     { :ok, key, value }
   end
 
+  def parse_body(%Header{ status: 0x0000, opcode: op(:AUTH_NEGOTIATION) }, rest) do
+    { :ok, :plain }
+  end
+
+  def parse_body(%Header{ status: 0x0000, opcode: op(:AUTH_REQUEST) }, _) do
+    { :ok, :authenticated }
+  end
+
   defparse_empty(:SET)
   defparse_empty(:ADD)
   defparse_empty(:REPLACE)
@@ -412,6 +444,7 @@ defmodule Memcache.Protocol do
   defparse_error(0x0006, "Incr/Decr on non-numeric value")
   defparse_error(0x0081, "Unknown command")
   defparse_error(0x0082, "Out of memory")
+  defparse_error(0x0020, "Invalid authentication credentials")
 
   def quiet_response(:GETQ), do: { :ok, "Key not found" }
   def quiet_response(:GETKQ), do: { :ok, "Key not found" }

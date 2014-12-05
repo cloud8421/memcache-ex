@@ -3,7 +3,7 @@ defmodule MemcacheTest do
   alias Memcache.Connection
 
   test "commands" do
-    { :ok, pid } = Connection.start_link([ hostname: "localhost" ])
+    { :ok, pid } = Connection.start_link([ hostname: "localhost", port: 11212 ])
     cases = [
              {:FLUSH, [], { :ok }},
              {:GET, ["unknown"], { :error, "Key not found" }},
