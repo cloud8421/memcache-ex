@@ -90,25 +90,25 @@ defmodule Memcache.Connection do
       case :gen_tcp.recv(sock, body_size) do
         { :ok, body } ->
           response = Protocol.parse_body(header, body)
-          { :reply, response, s }
+          { :reply, response, s, :hibernate }
         { :error, reason } -> { :stop, :normal, reason, s }
       end
     else
       response = Protocol.parse_body(header, :empty)
-      { :reply, response, s }
+      { :reply, response, s, :hibernate}
     end
   end
 
   defp recv_stat(s, results) do
     case recv_header(s) do
-      { :reply, { :ok, :done }, _ } -> { :reply, { :ok, results }, s }
+      { :reply, { :ok, :done }, _ } -> { :reply, { :ok, results }, s, :hibernate }
       { :reply, { :ok, key, val }, _ } -> recv_stat(s, HashDict.put(results, key, val))
       err -> err
     end
   end
 
   defp recv_response_quiet([], s, results, _buffer) do
-    { :reply, { :ok, Enum.reverse(tl(results)) }, s }
+    { :reply, { :ok, Enum.reverse(tl(results)) }, s, :hibernate }
   end
 
   defp recv_response_quiet(commands, s, results, buffer) when byte_size(buffer) >= 24 do
